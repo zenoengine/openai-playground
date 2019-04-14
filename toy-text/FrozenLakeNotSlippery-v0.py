@@ -15,36 +15,24 @@ env = gym.make('FrozenLakeNotSlippery-v0')
 
 q_table = np.zeros((env.observation_space.n, env.action_space.n))
 
-def getMaxQ(state):
-    max = q_table[state][0]
-    for actionQ in q_table[state]:
-        if max < actionQ:
-            max = actionQ
-    return max
+def get_max_q(state):
+    return np.max(q_table[state,:])
 
-def getMaxQIndex(state):
-    max = q_table[state][0]
-    index = 0
-    i = 0
-    for actionQ in q_table[state]:
-        if max < actionQ:
-            max = actionQ
-            index = i
-        i += 1
-    return index
+def get_max_q_index(state):
+    return np.argmax(q_table[state,:])
 
 discount_factor = 0.8
 learning_rate = 0.7
 epsilion = 0.3
 
-for i_episode in range(100):
+for i_episode in range(1000):
     observation = env.reset()
     for t in range(100):
         env.render()
         
         current_state = observation
         
-        action = getMaxQIndex(current_state)
+        action = get_max_q_index(current_state)
         
         exploration = random.random()
         if exploration < epsilion:
@@ -63,7 +51,7 @@ for i_episode in range(100):
 
         reward -= 1
         
-        q_table[current_state][action] = q_table[current_state][action] + learning_rate*(reward + discount_factor*getMaxQ(next_state) - q_table[current_state][action])
+        q_table[current_state][action] = q_table[current_state][action] + learning_rate*(reward + discount_factor*get_max_q(next_state) - q_table[current_state][action])
         
         if done:
             break;
@@ -72,7 +60,7 @@ def test():
     observation = env.reset()
     for t in range(100):
         current_state = observation
-        action = getMaxQIndex(current_state)
+        action = get_max_q_index(current_state)
         observation, reward, done, info = env.step(action)
         env.render()
 
