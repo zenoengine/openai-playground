@@ -5,6 +5,8 @@ import tensorflow as tf
 import numpy as np
 import random
 from collections import deque
+import time
+
 
 env = gym.make('SpaceInvaders-v0')
 obsevation = env.reset()
@@ -25,7 +27,7 @@ def preprocess_frame(frame):
 stack_size = 4
 stacked_frames = deque([np.zeros((84,84), dtype=np.int) for i in range(stack_size)], maxlen=4)
 
-def stack_frames(stacked_frames, state, is_new_episode):
+def stack_frames(stacked_frames, state, is_new_episode = False):
     
     # Preprocess frame
     frame = preprocess_frame(state)
@@ -49,15 +51,13 @@ def stack_frames(stacked_frames, state, is_new_episode):
 
     return stacked_state, stacked_frames
 
-
-
 ### MODEL HYPERPARAMETERS
 state_size = [84,84,4]      # Our input is a stack of 4 frames hence 84x84x4 (Width, height, channels) 
-action_size = env.action_space.n              # 3 possible actions: left, right, shoot
+action_size = env.action_space              # 3 possible actions: left, right, shoot
 learning_rate =  0.0002      # Alpha (aka learning rate)
 
 ### TRAINING HYPERPARAMETERS
-total_episodes = 500        # Total episodes for training
+total_episodes = 150        # Total episodes for training
 max_steps = 100              # Max possible steps in an episode
 batch_size = 64             
 
@@ -71,13 +71,13 @@ gamma = 0.95               # Discounting rate
 
 ### MEMORY HYPERPARAMETERS
 pretrain_length = batch_size   # Number of experiences stored in the Memory when initialized for the first time
-memory_size = 10000          # Number of experiences the Memory can keep
+memory_size = 20000          # Number of experiences the Memory can keep
 
 ### MODIFY THIS TO FALSE IF YOU JUST WANT TO SEE THE TRAINED AGENT
-training = True
+training = False
 
 ## TURN THIS TO TRUE IF YOU WANT TO RENDER THE ENVIRONMENT
-episode_render = False
+episode_render = True
 
 class DQNetwork:
     def __init__(self, state_size, action_size, learning_rate, name='DQNetwork'):
@@ -272,7 +272,8 @@ if training == True:
             state, stacked_frames = stack_frames(stacked_frames, state, True)
 
             while step < max_steps:
-                env.render()
+                if episode_render:
+                    env.render()
                 
                 step += 1
                 
@@ -363,4 +364,35 @@ if training == True:
             if episode % 5 == 0:
                 save_path = saver.save(sess, "./models/model.ckpt")
                 print("Model Saved")
+
+with tf.Session() as sess:
+    
+    possible_actions = env.action_space.n
+    total_score = 0
+
+    # Load the model
+    saver.restore(sess, "./models/model.ckpt")
+
+    done = False
+    for i in range(1):    
+        frame = env.reset()
+        state, stacked_frames = stack_frames(stacked_frames, frame, True)
+        
+        while not done:
+            if episode_render:
+                    env.render()
+            state, stacked_frames = stack_frames(stacked_frames, frame, False)
+            prevFrame = frame
+            # Take the biggest Q value (= the best action)
+            Qs = sess.run(DQNetwork.output, feed_dict = {DQNetwork.inputs_: state.reshape((1, *state.shape))})
+            action = np.argmax(Qs)
+            frame, reward, done, info = env.step(action)
+            score = reward
+            if score > 0:
+                print(score)
+            total_score += score
+            time.sleep(0.016)
+
+    print("TOTAL_SCORE", total_score)
+
 env.close()
